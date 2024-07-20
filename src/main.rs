@@ -6,8 +6,9 @@ use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 use bevy::winit::WinitWindows;
 use bevy::DefaultPlugins;
-use bevy_game::GamePlugin; // ToDo: Replace bevy_game with your new crate name.
+use cycles::GamePlugin; // ToDo: Replace bevy_game with your new crate name.
 use std::io::Cursor;
+use bevy::render::settings::Backends;
 use winit::window::Icon;
 
 fn main() {
@@ -18,7 +19,7 @@ fn main() {
             DefaultPlugins
                 .set(WindowPlugin {
                     primary_window: Some(Window {
-                        title: "Bevy game".to_string(), // ToDo
+                        title: "Cycles".to_string(), // ToDo
                         // Bind to canvas included in `index.html`
                         canvas: Some("#bevy".to_owned()),
                         fit_canvas_to_parent: true,
@@ -30,6 +31,14 @@ fn main() {
                 })
                 .set(AssetPlugin {
                     meta_check: AssetMetaCheck::Never,
+                    ..default()
+                })
+                .set(bevy::render::RenderPlugin {
+                    render_creation: bevy::render::settings::WgpuSettings {
+                        backends: Some(Backends::DX12),
+                        ..default()
+                    }
+                        .into(),
                     ..default()
                 }),
         )
