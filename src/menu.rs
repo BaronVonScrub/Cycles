@@ -1,6 +1,7 @@
 use crate::loading::TextureAssets;
 use crate::GameState;
 use bevy::prelude::*;
+use bevy_inspector_egui::quick::WorldInspectorPlugin;
 
 pub struct MenuPlugin;
 
@@ -10,7 +11,8 @@ impl Plugin for MenuPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(OnEnter(GameState::Menu), setup_menu)
             .add_systems(Update, click_play_button.run_if(in_state(GameState::Menu)))
-            .add_systems(OnExit(GameState::Menu), cleanup_menu);
+            .add_systems(OnExit(GameState::Menu), cleanup_menu)
+            .add_plugins(WorldInspectorPlugin::new());
     }
 }
 
@@ -34,7 +36,7 @@ struct Menu;
 
 fn setup_menu(mut commands: Commands, textures: Res<TextureAssets>) {
     info!("menu");
-    commands.spawn(Camera2dBundle::default());
+    commands.spawn(Camera3dBundle::default());
     commands
         .spawn((
             NodeBundle {
