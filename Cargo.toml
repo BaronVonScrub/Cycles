@@ -10,11 +10,9 @@ exclude = ["dist", "build", "assets", "credits"]
 
 [profile.dev.package."*"]
 opt-level = 3
-debug = true
 
 [profile.dev]
 opt-level = 1
-debug = true
 
 # This is used by trunk as it doesn't support custom profiles: https://github.com/trunk-rs/trunk/issues/605
 # xbuild also uses this profile for building android AABs because I couldn't find a configuration for it
