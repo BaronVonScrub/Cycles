@@ -16,6 +16,7 @@ impl Plugin for LoadingPlugin {
                 .load_collection::<AudioAssets>()
                 .load_collection::<TextureAssets>()
                 .load_collection::<SceneAssets>()
+                .load_collection::<AnimationAssets>()
         );
     }
 }
@@ -48,4 +49,10 @@ pub struct TextureAssets {
 pub struct SceneAssets {
     #[asset(path = "scenes/Walker.glb#Scene0")]
     pub walker: Handle<Scene>,
+}
+
+#[derive(AssetCollection, Resource)]
+pub struct AnimationAssets {
+    #[asset(path = "scenes/Walker.glb#Animation0")]
+    pub walker_walk: Handle<AnimationClip>,
 }

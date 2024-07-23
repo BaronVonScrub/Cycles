@@ -1,11 +1,16 @@
 //! Plays animations from a skinned glTF.
 
+use std::fs;
+use std::path::PathBuf;
 use std::time::Duration;
 
 use bevy::{
     prelude::*,
 };
+use bevy::asset::AssetContainer;
+use bevy::ecs::observer::TriggerTargets;
 use crate::GameState;
+use crate::loading::AnimationAssets;
 
 #[derive(Resource)]
 struct Animations {
@@ -14,63 +19,40 @@ struct Animations {
     graph: Handle<AnimationGraph>,
 }
 
-fn create_animation_graphs(
+// System to play animation
+fn play_animations(
     mut commands: Commands,
-    asset_server: Res<AssetServer>,
+    animations: Res<AnimationAssets>,
+    animation_clips: Res<Assets<AnimationClip>>,
     mut graphs: ResMut<Assets<AnimationGraph>>,
-) {
-    // Build the animation graph
-    let mut graph = AnimationGraph::new();
-    let animations = graph
-        .add_clips(
-            [
-                GltfAssetLabel::Animation(0).from_asset("scenes/Walker.glb"),
-            ]
-                .into_iter()
-                .map(|path| asset_server.load(path)),
-            1.0,
-            graph.root,
-        )
-        .collect();
-
-    // Insert a resource with the current scene information
-    let graph = graphs.add(graph);
-    commands.insert_resource(Animations {
-        animations,
-        graph: graph.clone(),
-    });
-}
-
-// Once the scene is loaded, start the animation
-fn apply_animation_graphs(
-    mut commands: Commands,
-    animations: Res<Animations>,
     mut players: Query<(Entity, &mut AnimationPlayer), Added<AnimationPlayer>>,
 ) {
-    for (entity, mut player) in &mut players {
-        let mut transitions = AnimationTransitions::new();
+    // Check if the animation clip is loaded
+    if let Some(walker_clip) = animation_clips.get(&animations.walker_walk) {
+        // Create a new animation graph
+        let mut graph = AnimationGraph::new();
+        let animation_node = graph.add_clip(animations.walker_walk.clone(), 1.0, graph.root);
 
-        // Make sure to start the animation via the `AnimationTransitions`
-        // component. The `AnimationTransitions` component wants to manage all
-        // the animations and will get confused if the animations are started
-        // directly via the `AnimationPlayer`.
-        transitions
-            .play(&mut player, animations.animations[0], Duration::ZERO)
-            .repeat();
+        // Add the graph to the asset server and get its handle
+        let graph_handle = graphs.add(graph);
 
-        commands
-            .entity(entity)
-            .insert(animations.graph.clone())
-            .insert(transitions);
+        // Loop through each player and play the animation
+        for (entity, mut player) in players.iter_mut() {
+            // Use AnimationTransitions to manage the animation
+            let mut transitions = AnimationTransitions::new();
+            transitions.play(&mut player, animation_node, Duration::ZERO).repeat();
+
+            commands.entity(entity)
+                .insert(graph_handle.clone())
+                .insert(transitions);
+        }
     }
 }
-
 pub struct EzAnimationPlugin;
 
 impl Plugin for EzAnimationPlugin {
     fn build(&self, app: &mut App) {
         app
-            .add_systems(OnEnter(GameState::Playing), create_animation_graphs)
-            .add_systems(Update, apply_animation_graphs.run_if(in_state(GameState::Playing)));
+            .add_systems(Update, play_animations.run_if(in_state(GameState::Playing)));
     }
 }
