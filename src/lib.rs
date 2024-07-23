@@ -5,7 +5,9 @@ mod audio;
 mod loading;
 mod menu;
 mod player;
-mod animation;
+mod interpolators;
+mod keyframes;
+mod vstransform;
 
 use crate::actions::ActionsPlugin;
 use crate::audio::InternalAudioPlugin;
@@ -17,7 +19,8 @@ use bevy::app::App;
 #[cfg(debug_assertions)]
 use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
 use bevy::prelude::*;
-use crate::animation::EzAnimationPlugin;
+use crate::interpolators::EzAnimationPlugin;
+use crate::keyframes::EzKeyframingPlugin;
 
 // This example game uses States to separate logic
 // See https://bevy-cheatbook.github.io/programming/states.html
@@ -44,6 +47,7 @@ impl Plugin for GamePlugin {
             InternalAudioPlugin,
             PlayerPlugin,
             EzAnimationPlugin,
+            EzKeyframingPlugin,
         ));
 
         #[cfg(debug_assertions)]

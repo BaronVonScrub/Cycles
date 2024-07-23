@@ -1696,6 +1696,7 @@ dependencies = [
  "bevy",
  "bevy-inspector-egui",
  "bevy_asset_loader",
+ "bevy_color",
  "bevy_kira_audio",
  "embed-resource",
  "image 0.25.1",

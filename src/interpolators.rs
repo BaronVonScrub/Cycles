@@ -2,38 +2,7 @@ use bevy::math::VectorSpace;
 use bevy::prelude::*;
 use bevy_inspector_egui::InspectorOptions;
 use crate::GameState;
-
-// Define the InterpolatableValue trait
-pub trait InterpolatableValue {
-    fn interpolate(&self, other: &Self, t: f32) -> Self;
-}
-
-// Implement InterpolatableValue for Transform
-impl InterpolatableValue for Transform {
-    fn interpolate(&self, other: &Self, t: f32) -> Self {
-        let translation = self.translation.lerp(other.translation, t);
-        let rotation = self.rotation.slerp(other.rotation, t);
-        let scale = elerp(self.scale, other.scale, t);
-
-        Transform {
-            translation,
-            rotation,
-            scale,
-        }
-    }
-}
-
-impl InterpolatableValue for Oklaba {
-    fn interpolate(&self, other: &Self, t: f32) -> Self {
-        self.lerp(*other, t)
-    }
-}
-
-impl InterpolatableValue for f32 {
-    fn interpolate(&self, other: &Self, t: f32) -> Self {
-        self * (1.0 - t) + other * t
-    }
-}
+use crate::vstransform::VSTransform;
 
 // Define the elerp method for Vec3
 fn elerp(v1: Vec3, v2: Vec3, t: f32) -> Vec3 {
@@ -48,27 +17,50 @@ fn elerp(v1: Vec3, v2: Vec3, t: f32) -> Vec3 {
     )
 }
 
+#[derive(Reflect, InspectorOptions)]
+pub struct Curve(CubicCurve<f32>);
+
+impl Default for Curve {
+    fn default() -> Self {
+        Curve(CubicCardinalSpline::new(0.5, [0.0f32, 1.0f32]).to_curve()) // Assuming ForeignType has a `new` method
+    }
+}
+
 // Define the InterpolatableComponent struct
 #[derive(Reflect, Component, Default, InspectorOptions)]
 #[reflect(Component)]
-struct InterpolatingComponent<T: InterpolatableValue + Clone + Send + Sync + 'static> {
+pub struct InterpolatingComponent<T: VectorSpace + Clone + Send + Sync + 'static> {
     start: T,
     end: T,
     current: T,
+    curve: Curve
 }
 
-impl<T: InterpolatableValue + Clone + Send + Sync + 'static> InterpolatingComponent<T> {
-    pub fn new(start: T, end: T) -> Self {
+impl<T: VectorSpace + Clone + Send + Sync + 'static> InterpolatingComponent<T> {
+    pub fn standard(start: T, end: T) -> Self {
         let curr = start.clone();
         InterpolatingComponent {
             start,
             end,
             current: curr,
+            curve: Default::default(),
         }
     }
 
-    pub fn interpolate(&mut self, t: f32) {
-        self.current = self.start.interpolate(&self.end, t);
+    pub fn curved(start: T, end: T, points: impl Into<Vec<f32>>) -> Self {
+        let curr = start.clone();
+        InterpolatingComponent {
+            start,
+            end,
+            current: curr,
+            curve: Curve(CubicCardinalSpline::new(0.5, points).to_curve())
+        }
+    }
+
+    pub fn lerp(&mut self, t: f32) {
+        let segments =self.curve.0.segments.len();
+        let t= self.curve.0.position(segments as f32*t);
+        self.current = self.start.lerp(self.end, t);
     }
 }
 
@@ -76,13 +68,13 @@ impl<T: InterpolatableValue + Clone + Send + Sync + 'static> InterpolatingCompon
 #[derive(Resource)]
 struct InterpolationFactor(f32);
 
-// System to interpolate all InterpolatableComponent instances
-fn interpolate_system<T: InterpolatableValue + Clone + Send + Sync + 'static>(
+// System to lerp all InterpolatableComponent instances
+fn lerp_system<T: VectorSpace + Clone + Send + Sync + 'static>(
     mut query: Query<&mut InterpolatingComponent<T>>,
     interpolation_factor: Res<InterpolationFactor>,
 ) {
     for mut component in query.iter_mut() {
-        component.interpolate(interpolation_factor.0);
+        component.lerp(interpolation_factor.0);
     }
 }
 
@@ -94,7 +86,8 @@ fn update_interpolation_factor_system(
     interpolation_factor.0 = (time.elapsed_seconds()).sin() * 0.5 + 0.5;
 }
 
-// System to spawn a cube with an InterpolatableComponent wrapping a Transform and Oklaba color
+// EXAMPLE System to spawn a cube with an InterpolatableComponent wrapping a Transform and Oklaba color
+/*
 fn spawn_cube_system(
     mut commands: Commands,
     mut materials: ResMut<Assets<StandardMaterial>>,
@@ -105,8 +98,17 @@ fn spawn_cube_system(
         brightness: 1000.0,
     });
 
-    let start_transform = Transform::from_xyz(-1.0, 0.0, -3.0);
-    let end_transform = Transform::from_xyz(1.0, 0.0, -3.0);
+    let start_transform = Transform {
+        translation: Vec3::new(-1.0, 0.0, -3.0),
+        rotation: Quat::IDENTITY,
+        scale: Vec3::new(1.0, 1.0, 1.0), // Adjust the scale as needed
+    };
+
+    let end_transform = Transform {
+        translation: Vec3::new(1.0, 0.0, -3.0),
+        rotation: Quat::IDENTITY,
+        scale: Vec3::new(2.0, 2.0, 2.0), // Adjust the scale as needed
+    };
 
     let start_color = Oklaba::new(0.3, 0.5, 0.0, 1.0);
     let end_color = Oklaba::new(1.0, 0.5, 1.0, 1.0);
@@ -124,20 +126,20 @@ fn spawn_cube_system(
         transform: start_transform,
         ..Default::default()
     })
-        .insert(InterpolatingComponent::new(start_transform, end_transform))
-        .insert(InterpolatingComponent::new(start_color, end_color))
+        .insert(InterpolatingComponent::<VSTransform>::curved(start_transform.into(), end_transform.into(), [0.0,0.2,1.0]))
+        .insert(InterpolatingComponent::standard(start_color, end_color))
         .insert(MaterialHandle(material_handle));
-}
+}*/
 
 #[derive(Component)]
 struct MaterialHandle(Handle<StandardMaterial>);
 
-// System to update LocalTransform based on the interpolated value
+// System to update LocalTransform based on the lerpd value
 fn update_local_transform_system(
-    mut query: Query<(&mut Transform, &InterpolatingComponent<Transform>)>,
+    mut query: Query<(&mut Transform, &InterpolatingComponent<VSTransform>)>,
 ) {
     for (mut transform, interpolating_component) in query.iter_mut() {
-        *transform = interpolating_component.current;
+        *transform = interpolating_component.current.0;
     }
 }
 
@@ -166,16 +168,16 @@ pub struct EzAnimationPlugin;
 impl Plugin for EzAnimationPlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(InterpolationFactor(0.0))
-            .register_type::<InterpolatingComponent<Transform>>()
+            .register_type::<InterpolatingComponent<VSTransform>>()
             .register_type::<InterpolatingComponent<Oklaba>>()
             .register_type::<InterpolatingComponent<f32>>()
-            .add_systems(OnEnter(GameState::Playing),spawn_cube_system)
+            //.add_systems(OnEnter(GameState::Playing),spawn_cube_system)
             .add_systems(Update, update_interpolation_factor_system.run_if(in_state(GameState::Playing)))
             .add_systems(Update,
                          (
-                             interpolate_system::<Transform>,
-                             interpolate_system::<Oklaba>,
-                             interpolate_system::<f32>,
+                             lerp_system::<VSTransform>,
+                             lerp_system::<Oklaba>,
+                             lerp_system::<f32>,
                          ).run_if(in_state(GameState::Playing)))
             .add_systems(Update,
                          (
