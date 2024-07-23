@@ -163,9 +163,9 @@ fn update_color_system(
 }
 
 // Define the InterpolationPlugin
-pub struct EzAnimationPlugin;
+pub struct EzInterpolationPlugin;
 
-impl Plugin for EzAnimationPlugin {
+impl Plugin for EzInterpolationPlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(InterpolationFactor(0.0))
             .register_type::<InterpolatingComponent<VSTransform>>()
