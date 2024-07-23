@@ -22,7 +22,7 @@ pub struct Curve(CubicCurve<f32>);
 
 impl Default for Curve {
     fn default() -> Self {
-        Curve(CubicCardinalSpline::new(0.5, [0.0f32, 1.0f32]).to_curve()) // Assuming ForeignType has a `new` method
+        Curve(CubicCardinalSpline::new(0.0, [0.0f32, 1.0f32]).to_curve()) // Assuming ForeignType has a `new` method
     }
 }
 
@@ -32,7 +32,7 @@ impl Default for Curve {
 pub struct InterpolatingComponent<T: VectorSpace + Clone + Send + Sync + 'static> {
     start: T,
     end: T,
-    current: T,
+    pub(crate) current: T,
     curve: Curve
 }
 
@@ -66,7 +66,7 @@ impl<T: VectorSpace + Clone + Send + Sync + 'static> InterpolatingComponent<T> {
 
 // Define a resource to store the interpolation factor
 #[derive(Resource)]
-struct InterpolationFactor(f32);
+pub struct InterpolationFactor(pub(crate) f32);
 
 // System to lerp all InterpolatableComponent instances
 fn lerp_system<T: VectorSpace + Clone + Send + Sync + 'static>(
